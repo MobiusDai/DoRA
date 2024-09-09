@@ -352,23 +352,31 @@ class Linear(nn.Linear, LoraLayer):
         if self.disable_adapters:
             raise NotImplementedError
 
-        elif self.r > 0 and not self.merged:
+        else:
 
-            dropout_x = self.lora_dropout(x)
+            dropout_x = self.lora_dropout(x).to(self.lora_A.weight.dtype)
             
-            router_weight = self.lora_router(x) 
+            router_weight = self.lora_router(dropout_x) 
             router_weight = torch.softmax(router_weight, dim=-1)
             router_weight = torch.diag_embed(router_weight)
-            lora_weight = self.lora_B.weight @ router_weight @ self.lora_A.weight
-            
-            # print(lora_weight.size(), dropout_x.size())
 
-            if len(lora_weight.size()) == 3:
-                lora_result = torch.einsum('bkd,bd->bk', lora_weight, dropout_x)
-            elif len(lora_weight.size()) == 4:
-                lora_result = torch.einsum('bnkd,bnd->bnk', lora_weight, dropout_x)
+            left_result = dropout_x @ self.lora_A.weight.T # b n r/ b r
+            if len(router_weight.size()) == 3:
+                moe_result = torch.einsum('br,brk->bk', left_result, router_weight)
+            elif len(router_weight.size()) == 4:
+                moe_result = torch.einsum('bnr,bnrk->bnk', left_result, router_weight)
             else:
                 raise NotImplementedError('maybe multi-head attention?')
+            
+            lora_result = moe_result @ self.lora_B.weight.T
+            
+            # lora_weight = self.lora_B.weight @ router_weight @ self.lora_A.weight
+            # if len(lora_weight.size()) == 3:
+            #     lora_result = torch.einsum('bkd,bd->bk', lora_weight, dropout_x)
+            # elif len(lora_weight.size()) == 4:
+            #     lora_result = torch.einsum('bnkd,bnd->bnk', lora_weight, dropout_x)
+            # else:
+            #     raise NotImplementedError('maybe multi-head attention?')
 
             
             org_result = (F.linear(x, transpose(self.weight, self.fan_in_fan_out)))
@@ -376,9 +384,6 @@ class Linear(nn.Linear, LoraLayer):
                 org_result += self.bias.view(1, -1).expand_as(org_result)
 
             result = org_result + lora_result * self.scaling
-            
-        else:
-             result = F.linear(x, transpose(self.weight, self.fan_in_fan_out), bias=self.bias)
 
         if result.dtype != previous_dtype:
             result = result.to(previous_dtype)
