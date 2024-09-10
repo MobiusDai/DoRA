@@ -357,7 +357,8 @@ class Linear(nn.Linear, LoraLayer):
             dropout_x = self.lora_dropout(x).to(self.lora_A.weight.dtype)
             
             router_weight = self.lora_router(dropout_x) 
-            router_weight = torch.softmax(router_weight, dim=-1)
+            # router_weight = torch.softmax(router_weight, dim=-1) # softmax version
+            router_weight = torch.sigmoid(router_weight) # sigmoid version, suitable for rank 1
             router_weight = torch.diag_embed(router_weight)
 
             left_result = dropout_x @ self.lora_A.weight.T # b n r/ b r
