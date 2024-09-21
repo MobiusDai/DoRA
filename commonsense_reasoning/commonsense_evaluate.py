@@ -38,6 +38,7 @@ def main(
         base_model: str = "",
         lora_weights: str = "tloen/alpaca-lora-7b",
         share_gradio: bool = False,
+        save_dir: str = "",
 ):
     args = parse_args()
 
@@ -75,8 +76,8 @@ def main(
         outputs = [o.split("### Response:")[-1].strip() for o in outputs]
         return outputs
 
-    save_file = f'experiment/{args.model}-{args.adapter}-{args.dataset}.json'
-    create_dir('experiment/')
+    save_file = f'{args.save_dir}/{args.model}-{args.adapter}-{args.dataset}.json'
+    create_dir(f'{args.save_dir}/')
 
     dataset = load_data(args)
     batches = create_batch(dataset, args.batch_size)
@@ -192,7 +193,7 @@ def load_data(args) -> list:
     Returns:
 
     """
-    file_path = f'dataset/{args.dataset}/test.json'
+    file_path = f'ft_test_dataset/{args.dataset}/test.json'
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"can not find dataset file : {file_path}")
     json_data = json.load(open(file_path, 'r'))
@@ -218,6 +219,7 @@ def parse_args():
     parser.add_argument('--lora_weights', required=True)
     parser.add_argument('--batch_size', type=int, required=True)
     parser.add_argument('--load_8bit', action='store_true', default=False)
+    parser.add_argument('--save_dir', type=str, default="Experiment" )
 
     return parser.parse_args()
 

@@ -5,5 +5,10 @@ instruction_tuning_dvora/COPYRIGHT.txt
 instruction_tuning_dvora/get_avg_score.py
 instruction_tuning_dvora/Software Evaluation License.pdf
 
+finetuned_result*/
 finetuned_result/
-dataset/
+*dataset/
+results/
+*results/
+trained_models/
+*trained_models/
